@@ -23,6 +23,7 @@
  *  Description   : Interface adapter for the CMO interface of the CVA6 core
  *  History       :
  */
+`ifdef HPDCACHE_ENABLE_CMO
 module cva6_hpdcache_cmo_if_adapter
 import hpdcache_pkg::*;
 
@@ -30,7 +31,13 @@ import hpdcache_pkg::*;
 //  {{{
 #(
     parameter type cmo_req_t = logic,
-    parameter type cmo_rsp_t = logic
+    parameter type cmo_rsp_t = logic,
+    // HPDcache compatibility: in this vendor snapshot the SID/request/response
+    // types are locally constructed and must be passed in from the wrapper.
+    parameter type hpdcache_req_sid_t = logic,
+    parameter type hpdcache_req_t = logic,
+    parameter type hpdcache_rsp_t = logic,
+    parameter type hpdcache_tag_t = logic
 )
 //  }}}
 
@@ -42,7 +49,7 @@ import hpdcache_pkg::*;
   input  logic                            rst_ni,
 
   //  Port ID
-  input  hpdcache_pkg::hpdcache_req_sid_t dcache_req_sid_i,
+  input  hpdcache_req_sid_t               dcache_req_sid_i,
 
   //  Request/response ports from/to the CVA6 core
   input  cmo_req_t                        cva6_cmo_req_i,
@@ -51,11 +58,14 @@ import hpdcache_pkg::*;
   //  Request port to the L1 Dcache
   output logic                            dcache_req_valid_o,
   input  logic                            dcache_req_ready_i,
-  output hpdcache_pkg::hpdcache_req_t     dcache_req_o,
+  output hpdcache_req_t                   dcache_req_o,
+  output logic                            dcache_req_abort_o,
+  output hpdcache_tag_t                   dcache_req_tag_o,
+  output hpdcache_pkg::hpdcache_pma_t     dcache_req_pma_o,
 
   //  Response port from the L1 Dcache
   input  logic                            dcache_rsp_valid_i,
-  input  hpdcache_pkg::hpdcache_rsp_t     dcache_rsp_i
+  input  hpdcache_rsp_t                   dcache_rsp_i
 );
 //  }}}
 
@@ -68,7 +78,7 @@ import hpdcache_pkg::*;
   } forward_state_q, forward_state_d;
 
   logic forward_cmo;
-  hpdcache_pkg::hpdcache_req_t dcache_req_cmo;
+  hpdcache_req_t dcache_req_cmo;
   logic [ariane_pkg::TRANS_ID_BITS-1:0] cmo_tid_q, cmo_tid_d;
   logic cmo_ack;
   logic stall;
@@ -140,7 +150,7 @@ import hpdcache_pkg::*;
   //  {{{
   always_comb
   begin : cmo_req
-    dcache_req_cmo.addr        = hpdcache_req_addr_t'(cva6_cmo_req_i.address);
+    dcache_req_cmo.addr        = cva6_cmo_req_i.address;
     dcache_req_cmo.need_rsp    = 1'b0;
     dcache_req_cmo.uncacheable = 1'b0;
     dcache_req_cmo.sid         = dcache_req_sid_i;
@@ -174,6 +184,9 @@ import hpdcache_pkg::*;
 
   assign dcache_req_valid_o        = forward_cmo,
          dcache_req_o              = dcache_req_cmo,
+         dcache_req_abort_o        = 1'b0,
+         dcache_req_tag_o          = '0,
+         dcache_req_pma_o          = '0,
          cva6_cmo_resp_o.req_ready = ~stall;
   //  }}}
 
@@ -184,3 +197,48 @@ import hpdcache_pkg::*;
   //  }}}
 
 endmodule
+`else
+module cva6_hpdcache_cmo_if_adapter
+//  Parameters
+//  {{{
+#(
+    parameter type cmo_req_t = logic,
+    parameter type cmo_rsp_t = logic,
+    parameter type hpdcache_req_sid_t = logic,
+    parameter type hpdcache_req_t = logic,
+    parameter type hpdcache_rsp_t = logic,
+    parameter type hpdcache_tag_t = logic
+)
+//  }}}
+
+//  Ports
+//  {{{
+(
+  input  logic                        clk_i,
+  input  logic                        rst_ni,
+  input  hpdcache_req_sid_t           dcache_req_sid_i,
+  input  cmo_req_t                    cva6_cmo_req_i,
+  output cmo_rsp_t                    cva6_cmo_resp_o,
+  output logic                        dcache_req_valid_o,
+  input  logic                        dcache_req_ready_i,
+  output hpdcache_req_t               dcache_req_o,
+  output logic                        dcache_req_abort_o,
+  output hpdcache_tag_t               dcache_req_tag_o,
+  output hpdcache_pkg::hpdcache_pma_t dcache_req_pma_o,
+  input  logic                        dcache_rsp_valid_i,
+  input  hpdcache_rsp_t               dcache_rsp_i
+);
+//  }}}
+
+  // HPDcache compatibility: the legacy CVA6 tree does not enable CMO, so keep
+  // a synthesis-safe stub here to avoid pulling the newer CMO/CBO plumbing into
+  // this backport before it is needed.
+  assign dcache_req_valid_o = 1'b0;
+  assign dcache_req_o       = '0;
+  assign dcache_req_abort_o = 1'b0;
+  assign dcache_req_tag_o   = '0;
+  assign dcache_req_pma_o   = '0;
+  assign cva6_cmo_resp_o    = '0;
+
+endmodule
+`endif
