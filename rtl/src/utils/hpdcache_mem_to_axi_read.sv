@@ -64,7 +64,9 @@ import hpdcache_pkg::*;
 
     always_comb
     begin : resp_decode_comb
-        case (axi_r_i.resp)
+        // ACE extends RRESP beyond the base AXI response encoding. HPDcache
+        // only needs the AXI OKAY/SLVERR/DECERR classification here.
+        case (axi_r_i.resp[1:0])
             axi_pkg::RESP_SLVERR,
             axi_pkg::RESP_DECERR: resp = HPDCACHE_MEM_RESP_NOK;
             default:              resp = HPDCACHE_MEM_RESP_OK;
