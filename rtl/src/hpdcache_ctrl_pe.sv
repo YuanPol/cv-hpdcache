@@ -733,6 +733,29 @@ import hpdcache_pkg::*;
                             end
                         end
                         //  }}}
+
+                        //  Drop (do not park) a prefetch hint that would
+                        //  otherwise be put on-hold. A prefetch carries no
+                        //  architectural effect (need_rsp == 0); parking it in
+                        //  the RTAB lets prefetches occupy the few on-hold
+                        //  slots and starve demand requests, which the RTAB
+                        //  replays at higher priority than new core requests.
+                        //  The prefetcher re-issues from its own buffer, so
+                        //  dropping is safe and cheap. st1_nop is already set
+                        //  on every park path, so the dropped prefetch simply
+                        //  leaves a pipeline bubble and retires.
+                        if (st1_req_is_cmo_prefetch_i && !st1_req_need_rsp_i &&
+                            st1_rtab_alloc) begin
+                            st1_rtab_alloc             = 1'b0;
+                            st1_rtab_commit_o          = st1_req_rtab_i;
+                            st1_rtab_mshr_hit_o        = 1'b0;
+                            st1_rtab_mshr_full_o       = 1'b0;
+                            st1_rtab_dir_unavailable_o = 1'b0;
+                            st1_rtab_wbuf_hit_o        = 1'b0;
+                            st1_rtab_mshr_ready_o      = 1'b0;
+                            st1_rtab_flush_hit_o       = 1'b0;
+                            st1_rtab_flush_not_ready_o = 1'b0;
+                        end
                     end
                     //  }}}
 
