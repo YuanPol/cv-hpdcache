@@ -128,6 +128,7 @@ import hpdcache_pkg::*;
 
     //      Status interface
     output logic                          wbuf_empty_o,
+    output logic                          mshr_full_o,
 
     //      Configuration interface
     input  logic                          cfg_enable_i,
@@ -772,7 +773,7 @@ import hpdcache_pkg::*;
         .rst_ni,
 
         .mshr_empty_o                       (miss_mshr_empty),
-        .mshr_full_o                        (/* unused */),
+        .mshr_full_o                        (mshr_full_o),
 
         .cfg_prefetch_updt_sel_victim_i     (cfg_prefetch_updt_plru_i),
 
